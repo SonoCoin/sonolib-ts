@@ -1,0 +1,44 @@
+{
+  "name": "sonolib",
+  "version": "1.1.9",
+  "description": "SonoCoin lib for ts, js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "files": [
+    "dist/**/*"
+  ],
+  "keywords": [
+    "SonoCoin",
+    "sono"
+  ],
+  "bugs": {
+    "url": "https://github.com/sonocoin/sonolib-ts/issues"
+  },
+  "homepage": "https://github.com/sonocoin/sonolib-ts#readme",
+  "dependencies": {
+    "axios": "latest",
+    "big-integer": "latest",
+    "bip39": "^2.5.0",
+    "bs58": "latest",
+    "elliptic": "^6.5.2",
+    "libsodium-wrappers": "0.7.3",
+    "libsodium-wrappers-sumo": "0.7.4",
+    "lodash": "latest"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.2.6",
+    "@types/libsodium-wrappers": "^0.7.5",
+    "@types/libsodium-wrappers-sumo": "^0.7.1",
+    "@types/mocha": "^5.2.7",
+    "@types/node": "^12.12.14",
+    "chai": "^4.2.0",
+    "mocha": "^6.2.2",
+    "ts-node": "^8.5.4",
+    "tslint": "^5.20.1",
+    "tslint-eslint-rules": "^5.4.0",
+    "typescript": "^3.7.3"
+  }
+}
