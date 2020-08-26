@@ -1,12 +1,17 @@
 import axios, {AxiosInstance} from "axios";
-import {Balance} from "../Crypto/Dto/Balance";
-import {BigInteger} from "big-integer";
+import {Balance, Nonce, TransactionExtended, TransactionInputDto, TransactionRequestDto} from "../Dtos";
 import * as bigInt from "big-integer";
-import {Nonce} from "../Crypto/Dto/Nonce";
+import {BigInteger} from "big-integer";
+import * as _ from 'lodash';
 import {TransactionRequest} from "../Crypto/TransactionRequest";
-import {StaticCall} from "../Crypto/Dto/StaticCall";
+import {StaticCall} from "../Dtos/StaticCall";
 import {Erc20Client} from "./Extended";
-import {toSatoshi} from "../Crypto";
+import {
+	Block,
+	BlockHeader,
+	Info,
+	toSatoshi, Transaction,
+} from "../Crypto";
 
 let config = {
 	// baseURL: process.env.baseURL || process.env.apiUrl || ""
@@ -70,10 +75,21 @@ export class Client {
 		}
 	};
 
-	public send = async (tx: TransactionRequest): Promise<boolean> => {
+	public validate = async (tx: TransactionRequest): Promise<boolean> => {
 		try {
 			const txJSON = tx.toJSON();
-			const { data } = await this.http.post(`${this.baseAddress}/txs/publish`, txJSON,
+			const { data } = await this.http.post(`${this.baseAddress}/txs/validate`, txJSON,
+				{ 'headers': { 'Content-Type': 'application/json' } });
+			return data.result == 'ok';
+		} catch (e) {
+			throw e.response.data.message;
+		}
+	};
+
+	public send = async (tx: TransactionRequest): Promise<boolean> => {
+		try {
+			// const txJSON = tx.toJSON();
+			const { data } = await this.http.post(`${this.baseAddress}/txs/publish`, tx,
 				{ 'headers': { 'Content-Type': 'application/json' } });
 			return data.result == 'ok';
 		} catch (e) {
@@ -84,9 +100,83 @@ export class Client {
 	public staticCall = async (address: string, payload: string): Promise<StaticCall<BigInteger>> => {
 		return this.erc20.staticCall(address, payload);
 	};
+
 	public consumedFee = async (sender: string, contract: string | null, payload: string,
 								value: BigInteger = toSatoshi(0), commission: BigInteger = toSatoshi(1000)): Promise<StaticCall<BigInteger>> => {
 		return this.erc20.consumedFee(sender, contract, payload, value, commission);
 	};
+
+	// get blockchain info
+	public info = async () : Promise<Info> => {
+		try {
+			const { data } = await this.http.get<Info>(`${this.baseAddress}/info`);
+			return data;
+		} catch (e) {
+			throw e.response.data.message;
+		}
+	};
+
+	//////// blocks section
+
+	// get header
+	public getHeader = async (hash: string) : Promise<BlockHeader> => {
+		try {
+			const { data } = await this.http.get<BlockHeader>(`${this.baseAddress}/headers/${hash}`);
+			return data;
+		} catch (e) {
+			throw e.response.data.message;
+		}
+	};
+
+	// get header by height
+	public getHeaderByHeight = async (height: number) : Promise<BlockHeader> => {
+		try {
+			const { data } = await this.http.get<BlockHeader>(`${this.baseAddress}/headers/height/${height}`);
+			return data;
+		} catch (e) {
+			throw e.response.data.message;
+		}
+	};
+
+	// get block
+	public getBlock = async (hash: string) : Promise<Block<BigInteger>> => {
+		try {
+			const { data } = await this.http.get<Block<BigInteger>>(`${this.baseAddress}/blocks/${hash}`);
+			return data;
+		} catch (e) {
+			throw e.response.data.message;
+		}
+	};
+
+	// get block by height
+	public getBlockByHeight = async (height: number) : Promise<Block<BigInteger>> => {
+		try {
+			const header = await this.getHeaderByHeight(height);
+			return this.getBlock(header.hash);
+		} catch (e) {
+			throw e;
+		}
+	};
+
+	// transaction
+	public getTx = async (hash: string) : Promise<TransactionExtended<BigInteger>> => {
+		try {
+			let req = {
+				hashes: [hash],
+			};
+
+			// const txJSON = tx.toJSON();
+			const { data } = await this.http.post<TransactionExtended<BigInteger>[]>(`${this.baseAddress}/txs`, req,
+				{ 'headers': { 'Content-Type': 'application/json' } });
+
+			// if (data.length == 0) {
+			// 	throw "Transaction not found";
+			// }
+
+			return data[0];
+		} catch (e) {
+			throw e.response.data.message;
+		}
+	}
 
 }

@@ -1,4 +1,4 @@
-export * from './Dto';
+export * from '../Dtos';
 export * from './HDKeys';
 export * from './KeysGen';
 export * from './TransactionRequest';

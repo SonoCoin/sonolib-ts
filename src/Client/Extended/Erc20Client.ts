@@ -1,9 +1,9 @@
-import {Balance, ContractMessageDto} from "../../Crypto/Dto";
+import {Balance, ContractMessageDto} from "../../Dtos";
 import {BigInteger} from "big-integer";
 import * as bigInt from "big-integer";
 import * as bs58 from 'bs58';
 import {AxiosInstance} from "axios";
-import {StaticCall} from "../../Crypto/Dto/StaticCall";
+import {StaticCall} from "../../Dtos/StaticCall";
 import {BigIntToBufferBE, readBigUInt64BE, toSatoshi} from "../../Crypto";
 import {Erc20BalanceHex, Erc20TransferHex} from "../../Contracts";
 
@@ -25,8 +25,6 @@ export class Erc20Client {
             };
             const { data } = await this.http.post(`${this.baseAddress}/contract/static_call`, params,
                 { 'headers': { 'Content-Type': 'application/json' } });
-
-            console.log('data', data);
 
             return {
                 consumedFee: bigInt(data.consumedFee),

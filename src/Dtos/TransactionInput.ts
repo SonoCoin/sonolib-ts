@@ -1,5 +1,5 @@
 import {BigInteger} from "big-integer";
-import {BigIntToBufferLE} from "../utils";
+import {BigIntToBufferLE} from "../Crypto/utils";
 import * as bs58 from 'bs58';
 
 export class TransactionInputDto<T> {

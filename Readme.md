@@ -18,6 +18,66 @@ const baseAddr = "https://testnet.sonocoin.io/api/rest/v1";
 const client = new Client(baseAddr);
 ```
 
+Get blockchain info 
+```javascript
+const baseAddr = "https://testnet.sonocoin.io/api/rest/v1";
+const client = new Client(baseAddr);
+try {
+    const info = await client.info();
+    console.log(info);
+} catch(e) {
+    console.log(e);
+}
+```
+
+Get header by hash 
+```javascript
+const baseAddr = "https://testnet.sonocoin.io/api/rest/v1";
+const client = new Client(baseAddr);
+try {
+    const info = await client.getHeader("bff01a475000e90dacdc004441accfc4770d94d8e73e40ed7841ac5940b2cba0");
+    console.log(info);
+} catch(e) {
+    console.log(e);
+}
+```
+
+Get header by height 
+```javascript
+const baseAddr = "https://testnet.sonocoin.io/api/rest/v1";
+const client = new Client(baseAddr);
+try {
+    const info = await client.getHeaderByHeight(100);
+    console.log(info);
+} catch(e) {
+    console.log(e);
+}
+```
+
+Get block by hash 
+```javascript
+const baseAddr = "https://testnet.sonocoin.io/api/rest/v1";
+const client = new Client(baseAddr);
+try {
+    const info = await client.getBlock("bff01a475000e90dacdc004441accfc4770d94d8e73e40ed7841ac5940b2cba0");
+    console.log(info);
+} catch(e) {
+    console.log(e);
+}
+```
+
+Get block by height 
+```javascript
+const baseAddr = "https://testnet.sonocoin.io/api/rest/v1";
+const client = new Client(baseAddr);
+try {
+    const info = await client.getBlockByHeight(100);
+    console.log(info);
+} catch(e) {
+    console.log(e);
+}
+```
+
 Get balance of address
 ```javascript
 const baseAddr = "https://testnet.sonocoin.io/api/rest/v1";
@@ -63,6 +123,7 @@ Generate and publish tx
 const baseUrl = "https://testnet.sonocoin.io/api/rest/v1";
 const receiver = "SCWz1UP4xmfBe4zbT83QLM3UN2BdT9oKayB";
 const amount = 0.1;
+const gasPrice = 0;
 
 const client = new Client(baseUrl);
 const crypto = await Crypto.init();
@@ -73,6 +134,7 @@ const wallet = hdKeys.toWallet();
 const nonce = await client.getNonce(wallet.Base58Address);
 
 let tx = crypto.tx.generateTx()
+    .addCommission(gasPrice, COMMISSION)
     .addSender(wallet.Base58Address, hdKeys, toSatoshi(amount).plus(COMMISSION), nonce.unconfirmed_nonce)
     .addTransfer(receiver, toSatoshi(amount), COMMISSION)
     .sign();
@@ -139,6 +201,7 @@ const nonce = await client.getNonce(wallet.Base58Address);
 const commission = resp.consumedFee.plus(COMMISSION);
 
 let tx = crypto.tx.generateTx()
+    .addCommission(gasPrice, COMMISSION)
     .addSender(wallet.Base58Address, hdKeys, commission, nonce.unconfirmedNonce)
     .addContractCreation(wallet.Base58Address, payload, toBigInt(0), commission)
     .sign();
@@ -168,6 +231,7 @@ const nonce = await client.getNonce(wallet.Base58Address);
 const commission = resp.consumedFee.plus(COMMISSION);
 
 let tx = crypto.tx.generateTx()
+    .addCommission(gasPrice, COMMISSION)
     .addSender(wallet.Base58Address, hdKeys, commission, nonce.unconfirmedNonce)
     .addContractExecution(wallet.Base58Address, contract, payload, toBigInt(0), commission)
     .sign();

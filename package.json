@@ -1,6 +1,6 @@
 {
   "name": "sonolib",
-  "version": "1.1.9",
+  "version": "1.1.21",
   "description": "SonoCoin lib for ts, js",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -24,6 +24,7 @@
     "bip39": "^2.5.0",
     "bs58": "latest",
     "elliptic": "^6.5.2",
+    "keccak": "^3.0.0",
     "libsodium-wrappers": "0.7.3",
     "libsodium-wrappers-sumo": "0.7.4",
     "lodash": "latest"

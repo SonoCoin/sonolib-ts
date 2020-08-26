@@ -1,15 +1,10 @@
 import * as crypto from 'crypto';
 import * as bs58 from 'bs58';
 import {Crypto} from "./Crypto";
-import { toBigInt, toSatoshi} from "./index";
-import * as bigInt from "big-integer";
 
-const version = Buffer.from(new Uint8Array([14, 48]));
+const accountVersion = Buffer.from(new Uint8Array([14, 48]));
+const contractVersion = Buffer.from(new Uint8Array([14, 95]));
 const addressChecksumLen = 4;
-
-const COMMISSION = bigInt(1000000);
-const DOUBLE_COMMISSION = bigInt(2000000);
-const SATOSHI = bigInt(100000000);
 
 export class Wallet {
 
@@ -20,7 +15,7 @@ export class Wallet {
     constructor(publicKey: Buffer) {
         this._publicKey = publicKey;
         let payload = Buffer.alloc(0);
-        payload = Buffer.concat([payload, version]);
+        payload = Buffer.concat([payload, accountVersion]);
         const pub256Key = crypto.createHash('sha256').update(publicKey).digest();
         const ripmd160 = crypto.createHash('ripemd160').update(pub256Key).digest();
         payload = Buffer.concat([payload, ripmd160]);
@@ -40,6 +35,14 @@ export class Wallet {
     }
 
     static IsValidAddress(address: string): boolean {
+        return this.isValidAddress(accountVersion, address);
+    }
+
+    static IsValidContractAddress(address: string): boolean {
+        return this.isValidAddress(contractVersion, address);
+    }
+
+    private static isValidAddress(version: Buffer, address: string): boolean {
         let addressBytes;
         try {
             addressBytes = bs58.decode(address);
@@ -68,43 +71,6 @@ export class Wallet {
 
     static fromSeed(seed: string, path: number) {
         return Crypto.init().then(cr => cr.keysGen.fromSeed(seed, 'm/' + path + '\''));
-    }
-
-    static tx(nonce: number, seed: string, pathIndex: number, address: string, amount: number) {
-        return Crypto.init().then(cr => {
-            const hdKeys = cr.keysGen.fromSeed(seed, 'm/' + pathIndex + '\'');
-            const wallet = hdKeys.toWallet();
-
-            return cr.tx.generateTx()
-                .addSender(wallet.Base58Address, hdKeys, toSatoshi(amount).plus(COMMISSION), toBigInt(nonce))
-                .addTransfer(address, toSatoshi(amount), COMMISSION)
-                .sign();
-        });
-    }
-
-    static createContract(nonce: number, seed: string, pathIndex: number, code: string, amount: number, fee: number) {
-        return Crypto.init().then(cr => {
-            const hdKeys = cr.keysGen.fromSeed(seed, 'm/' + pathIndex + '\'');
-            const wallet = hdKeys.toWallet();
-
-            const commission = toSatoshi(fee);
-            return cr.tx.generateTx()
-                .addSender(wallet.Base58Address, hdKeys, toSatoshi(amount).plus(commission).plus(COMMISSION), toBigInt(nonce))
-                .addContractCreation(wallet.Base58Address, code, toBigInt(amount).multiply(SATOSHI), commission)
-                .sign();
-        });
-    }
-
-    static executeContract(nonce: number, seed: string, pathIndex: number, address: string, input: string, amount: number) {
-        return Crypto.init().then(cr => {
-            const hdKeys = cr.keysGen.fromSeed(seed, 'm/' + pathIndex + '\'');
-            const wallet = hdKeys.toWallet();
-
-            return cr.tx.generateTx()
-                .addSender(wallet.Base58Address, hdKeys, toSatoshi(amount).plus(DOUBLE_COMMISSION), toBigInt(nonce))
-                .addContractExecution(wallet.Base58Address, address, input, toBigInt(amount).multiply(SATOSHI), COMMISSION)
-                .sign();
-        });
     }
 }
 

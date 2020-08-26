@@ -1,8 +1,8 @@
-import {TransactionRequestBase, TransactionRequestDto} from "./Dto";
+import {TransactionRequestBase, TransactionRequestDto} from "../Dtos";
 import * as bigInt from "big-integer";
 import * as _ from 'lodash';
 import {BigInteger} from "big-integer";
-import { HDKeys } from "./index";
+import {BigIntToBufferLE, HDKeys} from "./index";
 import {doubleSha256, TxVersion} from "./utils";
 import {
     ContractMessage, ContractMessageDto,
@@ -12,12 +12,13 @@ import {
     TransactionType,
     Transfer,
     TransferDto
-} from "./Dto";
+} from "../Dtos";
 
 export class TransactionRequest extends TransactionRequestBase {
 
     private readonly _sodium: any;
     private readonly _signers: { [address: string]: HDKeys };
+    private _transferCommission: BigInteger;
 
     constructor(sodium: any) {
         super();
@@ -29,25 +30,22 @@ export class TransactionRequest extends TransactionRequestBase {
         this.type = TransactionType.Account;
     }
 
-    getTransfersCommission(): BigInteger {
-        let commission = bigInt(0);
-
-        this.transfers.forEach(val => {
-            commission = commission.plus(val.commission);
-        });
-
-        return commission;
-    }
-
     private generateHash() : string {
         const payload = this.toBytes();
         return doubleSha256(payload);
+    }
+
+    public addCommission(gasPrice: BigInteger, transferCommission: BigInteger) : TransactionRequest {
+        this.gasPrice = gasPrice;
+        this._transferCommission = transferCommission;
+        return this;
     }
 
     public toBytes() : Buffer {
         let payload = Buffer.alloc(8); // 4 + 4
         payload.writeUInt32LE(this.type, 0); // 4 bytes
         payload.writeUInt32LE(this.version, 4); // 4 bytes
+        const gasPrice = BigIntToBufferLE(this.gasPrice, 8);
 
         const inputs = this.inputs?.reduce((res, item) => {
             return Buffer.concat([res, item.toBytes()]);
@@ -65,23 +63,25 @@ export class TransactionRequest extends TransactionRequestBase {
             return Buffer.concat([res, item.toBytes()]);
         }, Buffer.alloc(0)) || Buffer.alloc(0);
 
-        return Buffer.concat([payload, inputs, transfers, messages, stakes]);
+        return Buffer.concat([payload, gasPrice, inputs, transfers, messages, stakes]);
     }
 
-    public validateValue() {
+    public validateValue(commission: BigInteger) {
         const transfersValue = this.transfers?.reduce((sum, cur) => {
-            return sum.plus(cur.value).plus(cur.commission);
+            return sum.plus(cur.value);
         }, bigInt(0)) || bigInt(0);
 
         const stakesValue = this.stakes?.reduce((sum, cur) => {
-            return sum.plus(cur.value).plus(cur.commission);
+            return sum.plus(cur.value);
         }, bigInt(0)) || bigInt(0);
 
         const messagesValue = this.messages?.reduce((sum, cur) => {
-            return sum.plus(cur.value).plus(cur.commission);
+            return sum.plus(cur.value).plus(cur.gas.multiply(this.gasPrice));
         }, bigInt(0)) || bigInt(0);
 
-        const outValue = transfersValue.plus(stakesValue).plus(messagesValue);
+        const len = (this.transfers?.length || 0) + (this.stakes?.length || 0);
+        let outValue = commission.multiply(this.gasPrice).multiply(len);
+        outValue = outValue.plus(transfersValue.plus(stakesValue).plus(messagesValue));
 
         const inValue = this.inputs?.reduce((sum, cur) => {
             return sum.plus(cur.value);
@@ -100,9 +100,9 @@ export class TransactionRequest extends TransactionRequestBase {
         return this;
     }
 
-    public addTransfer(address: string, value: BigInteger, commission: BigInteger) : TransactionRequest {
+    public addTransfer(address: string, value: BigInteger) : TransactionRequest {
         if (!this.transfers) this.transfers = [];
-        this.transfers = [...this.transfers, new Transfer(address, value, commission)];
+        this.transfers = [...this.transfers, new Transfer(address, value)];
         return this;
     }
 
@@ -110,26 +110,26 @@ export class TransactionRequest extends TransactionRequestBase {
         if (!this.messages) this.messages = [];
     }
 
-    public addContractCreation(sender: string, payload: string, value: BigInteger, commission: BigInteger) : TransactionRequest {
+    public addContractCreation(sender: string, code: string, amount: BigInteger, gas: BigInteger) : TransactionRequest {
         this.checkContractsData();
-        this.messages = [...this.messages, new ContractMessage(sender, null, payload, value, commission)];
+        this.messages = [...this.messages, new ContractMessage(sender, null, code, amount, gas)];
         return this;
     }
 
-    public addContractExecution(sender: string, address: string, payload: string, value: BigInteger, commission: BigInteger) {
+    public addContractExecution(sender: string, address: string, code: string, value: BigInteger, gas: BigInteger) {
         this.checkContractsData();
-        this.messages = [...this.messages, new ContractMessage(sender, address, payload, value, commission)];
+        this.messages = [...this.messages, new ContractMessage(sender, address, code, value, gas)];
         return this;
     }
 
-    public addStake(address: string, value: BigInteger, commission: BigInteger, nodeId: string) {
+    public addStake(address: string, value: BigInteger, nodeId: string) {
         if (!this.stakes) this.stakes = [];
-        this.stakes = [...this.stakes, new Stake(address, value, commission, nodeId)];
+        this.stakes = [...this.stakes, new Stake(address, value, nodeId)];
         return this;
     }
 
     public validate() {
-        this.validateValue();
+        this.validateValue(this._transferCommission);
     }
 
     public sign() : TransactionRequest {
@@ -153,6 +153,7 @@ export class TransactionRequest extends TransactionRequestBase {
         let payload = Buffer.alloc(8); // 4 + 4
         payload.writeUInt32LE(this.type, 0); // 4 bytes
         payload.writeUInt32LE(this.version, 4); // 4 bytes
+        const gasPrice = BigIntToBufferLE(this.gasPrice, 8);
 
         const inputPayload = input.toBytes();
 
@@ -168,12 +169,13 @@ export class TransactionRequest extends TransactionRequestBase {
             return Buffer.concat([res, item.toBytes()]);
         }, Buffer.alloc(0)) || Buffer.alloc(0);
 
-        return Buffer.concat([payload, inputPayload, transfers, messages, stakes]);
+        return Buffer.concat([payload, gasPrice, inputPayload, transfers, messages, stakes]);
     }
 
     public toJSON(): string {
         const tx: TransactionRequestDto<number> = {
             ..._.pick(this, ['hash', 'type', 'version']),
+            gasPrice: Number(this.gasPrice),
             inputs: this.inputs?.map((item) : TransactionInputDto<number> => (
                 {
                     ..._.pick(item, ['type', 'address', 'sign', 'publicKey']),
@@ -185,21 +187,19 @@ export class TransactionRequest extends TransactionRequestBase {
                 {
                     ..._.pick(item, ['address']),
                     value: Number(item.value),
-                    commission: Number(item.commission),
                 }
             )),
             messages: this.messages?.map((item) : ContractMessageDto<number> => (
                 {
                     ..._.pick(item, ['sender', 'address', 'payload']),
                     value: Number(item.value),
-                    commission: Number(item.commission),
+                    gas: Number(item.gas),
                 }
             )),
             stakes: this.stakes?.map((item) : StakeDto<number> => (
                 {
                     ..._.pick(item, ['address', 'nodeId']),
                     value: Number(item.value),
-                    commission: Number(item.commission),
                 }
             )),
         };

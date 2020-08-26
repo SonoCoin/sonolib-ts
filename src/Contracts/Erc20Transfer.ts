@@ -14,6 +14,11 @@ export class Erc20Transfer {
         this._txRequest = new TransactionRequest(sodium);
     }
 
+    public addCommission(gasPrice: BigInteger) : Erc20Transfer {
+        this._txRequest.addCommission(gasPrice, toBigInt(0));
+        return this;
+    }
+
     // amount = commission in sono from transfer
     public addSender(address: string, keyPair: HDKeys, amount: BigInteger, nonce: BigInteger) : Erc20Transfer {
         this._sender = address;

@@ -14,6 +14,7 @@ export class TransactionRequestDto<T> {
     transfers: TransferDto<T>[];
     messages: ContractMessageDto<T>[];
     stakes: StakeDto<T>[];
+    gasPrice: BigInteger;
 
     constructor() {
         this.type = TransactionType.Account;
